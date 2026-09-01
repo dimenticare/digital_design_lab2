@@ -1,0 +1,100 @@
+op=instr[6:0]
+funct3=instr[14:12]
+funct7=instr[31:25]	funct6=instr[31:26]
+
+ALUop指令
+		op			funct3		funct6/7			ALUOp
+add		0110011		000			0000000			000
+sub								0100000			001
+and					111			0000000			010
+or					110							011
+xor					100							100
+
+读写功能
+lw		0000011		010
+sw		0100011		
+
+位移功能
+slli		0010011		001			000000
+srli					101
+srai					101			010000
+
+Branch指令
+beq		1100011		000							101
+bne					001							110
+jal		1101111
+jalr		1100111
+auipc	0010111
+
+立即数相关（不包含位移）
+        case(instr[6:0])
+            7'b0000011: begin//LW
+                if(instr[31] == 1) imm = {20'hfffff,instr[31:20]};
+                else imm = {20'h0,instr[31:20]};
+            end
+            7'b0100011: begin//SW
+                if(instr[31] == 1) imm = {20'hfffff,instr[31:25],instr[11:7]};
+                else imm = {20'h0,instr[31:25],instr[11:7]};
+            end
+            7'b1100011: begin//BEQ,BNE
+                if(instr[31] == 1) imm[31:13] = 19'h7ffff;
+                else imm[31:13] = 19'h0;
+                imm[12:0] = {instr[31],instr[7],instr[30:25],instr[11:8],1'b0};
+            end
+            7'b1101111: begin//JAL
+                if(instr[31] == 1) imm[31:21] = 11'h7ff;
+                else imm[31:21] = 11'h0;
+                imm[20:0] = {instr[31],instr[19:12],instr[20],instr[30:21],1'h0};
+            end
+            7'b1100111: begin//JALR
+                if(instr[31] == 1) imm = {20'hfffff,instr[31:20]};
+                else imm = {20'h0,instr[31:20]};
+            end
+            7'b0010111: begin//AUIPC
+                imm = {instr[31:12],12'b0};
+            end
+        endcase
+
+		Instr[6:0]		Instr[14:12]
+		op			funct3		MemtoReg	MemWrite	ALUSrc	RegWrite	x=PC+4	pc+=set	pc=x+offset	x=PC+imm(<<12)	ALUOp（废弃）
+		op			funct3 		MemtoReg	MemWrite	ALUSrc	RegWrite	PC4		set		xset			PCimm			ALUOp（废弃）
+addi		0010011		000			0			0			1		1			0		0		0			0				1
+位移指令	0010011		---			0			0			-		1（实际ALUSrc必须是0）
+R-type	0110011		---			0			0			0		1			0		0		0			0				1
+lw		0000011		010			1			0			1		1			0		0		0			0				0
+sw		0100011		010			X			1			1		0			0		0		0			0				0
+beq/bne	1100011		000/001		0			0			0		0			0		0(1)		0			0				1（需要进行比较）
+（括号内为实际情况，但有前提条件，于是单独提取出来，见下方）
+jal		1101111		001			0			0			0		1			1		1		0			0				0	
+jalr		1100111		001			0			0			1		1			1		0		1			0				0
+auipc	0010111		001			0			0			0		1			0		0		0			1				1	
+								Instr[31:26]
+								funct6
+slli		0010011		001			000000	左
+srli					101					右
+srai					101			010000	右
+位移：两逻辑位移，一个算术位移；专门做一个part放在RD1和ALU之间
+
+Branch中：
+改变pc：	beq/bne/jal	
+推荐单独写一个PC_MUX：
+输入：beq、bne、zero、set、imm、xset、ALUResult（x+offset）	current_PC
+输出：PC+4、PC+imm(<<12)									next_PC
+(beq & zero) | (bne & ~zero) | set == 1则PC+=offset	其中beq=op(1100011)+funct3(000)	bne=op(1100011)+funct3(001)
+xset=1则PC=x+offset								需要引入ALUResult，则ALUOp需要等于1，考虑到funct3(001)可以直接写在最后
+
+改变x：	jal/jalr/auipc	（RegWrite需要为1）均跳过ALU
+jal/jalr：在与MemtoReg的MUX后添加MUX，输出PC+4
+auipc：在与MemtoReg的MUX后添加MUX，输出PC+imm
+
+ALUControl
+		Instr[6:0]		Instr[14:12]	Instr[31:25]
+		op			funct3		funct7		ALUOp	ALUControl
+addi		0010011		000			---------		1		000
+add		0110011		000			0000000		1		000
+sub								0100000				001
+and					111			0000000				010
+or					110								011
+xor					100								100
+auipc	0010111		001								000(add)
+beq/bne	1100011		000/001		---------				001(sub)
