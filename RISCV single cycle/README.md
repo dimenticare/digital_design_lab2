@@ -186,11 +186,9 @@ RV32I 定义了 32 个通用寄存器，但 `x0` 是特殊寄存器，其读取�
 
 通过观察 **Program Counter、Instruction、Register File、ALU Result、Data Memory 以及相关控制信号**的变化，确认不同类型指令能够按照预期的数据通路完成执行。
 
-建议在此处加入项目最终 RTL Simulation 波形：
-
 ```text
-images/
-└── simulation_result.png
+![RTL Simulation Result 1](images/测试结果1.png)
+![RTL Simulation Result 2](images/测试结果2.png)
 ```
 
 ---
