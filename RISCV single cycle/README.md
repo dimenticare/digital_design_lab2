@@ -12,6 +12,14 @@
 
 ---
 
+## CPU 整体架构
+
+下图展示了本项目实现的单周期 RISC-V CPU 整体数据通路，包括 Program Counter、Control Unit、Register File、Immediate Data、Shifter、ALU、Data Memory 以及 Result MUX 等主要模块。
+
+![单周期 RISC-V CPU 整体架构](images/RISCV.jpg)
+
+---
+
 ## 主要任务
 
 * **Program Counter**
@@ -186,10 +194,9 @@ RV32I 定义了 32 个通用寄存器，但 `x0` 是特殊寄存器，其读取�
 
 通过观察 **Program Counter、Instruction、Register File、ALU Result、Data Memory 以及相关控制信号**的变化，确认不同类型指令能够按照预期的数据通路完成执行。
 
-```text
+
 ![RTL Simulation Result 1](images/测试结果1.png)
 ![RTL Simulation Result 2](images/测试结果2.png)
-```
 
 ---
 
